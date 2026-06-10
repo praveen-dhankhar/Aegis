@@ -211,6 +211,12 @@ Included tests:
 
 `mvn verify` runs unit tests, packages the application, runs `*IT` integration tests, and generates a JaCoCo report. Testcontainers tests skip automatically when Docker is unavailable.
 
+On Docker Desktop installations where Testcontainers cannot discover the daemon even though `docker` works, run:
+
+```bash
+DOCKER_HOST=unix://$HOME/.docker/run/docker.sock DOCKER_API_VERSION=1.54 mvn verify
+```
+
 ## Benchmarks
 
 JMH scaffold:
@@ -253,4 +259,3 @@ It runs Java 21 with Maven cache, executes `mvn verify`, and uploads the JaCoCo 
 - Grafana dashboard is a functional placeholder, not a polished production dashboard.
 - Benchmark numbers are intentionally left blank until measured on the target hardware.
 - Testcontainers integration tests require Docker; they skip on machines without a Docker daemon.
-# Aegis
