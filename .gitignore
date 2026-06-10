@@ -1,0 +1,13 @@
+target/
+.idea/
+.vscode/
+*.iml
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+docker/grafana/data/
+p1_rate_limiter_implementation_plan.md
+p1_rate_limiter_problem_statement.md
+p1_rate_limiter_system_design.md

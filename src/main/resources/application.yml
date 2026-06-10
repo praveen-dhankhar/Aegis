@@ -1,0 +1,42 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: rate-limiter-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_TIMEOUT:200ms}
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: rate-limiter-service
+
+rate-limiter:
+  default-limit: ${RATE_LIMIT_DEFAULT_LIMIT:100}
+  default-window-ms: ${RATE_LIMIT_DEFAULT_WINDOW_MS:60000}
+  default-burst-capacity: ${RATE_LIMIT_DEFAULT_BURST_CAPACITY:100}
+  default-algorithm: ${RATE_LIMIT_DEFAULT_ALGORITHM:SLIDING_WINDOW}
+  default-fail-mode: ${RATE_LIMIT_DEFAULT_FAIL_MODE:OPEN}
+  config-cache-ttl-seconds: ${RATE_LIMIT_CONFIG_CACHE_TTL_SECONDS:5}
+  config-ttl-seconds: ${RATE_LIMIT_CONFIG_TTL_SECONDS:86400}
+  admin-key: ${ADMIN_API_KEY:}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
