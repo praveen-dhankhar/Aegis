@@ -1,0 +1,41 @@
+{
+  "title": "Distributed Rate Limiter",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Allowed vs Rejected",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "sum by (result) (rate(rate_limit_requests_total[1m]))",
+          "legendFormat": "{{result}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis Errors",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "rate(rate_limit_redis_errors_total[1m])",
+          "legendFormat": "redis_errors"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis Lua Latency",
+      "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8},
+      "targets": [
+        {
+          "expr": "rate(rate_limit_redis_latency_ms_sum[1m]) / rate(rate_limit_redis_latency_ms_count[1m])",
+          "legendFormat": "avg_latency"
+        }
+      ]
+    }
+  ]
+}
