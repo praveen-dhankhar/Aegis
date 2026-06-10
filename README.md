@@ -190,10 +190,26 @@ rate_limit_requests_total{client,result,algorithm}
 rate_limit_allowed_total
 rate_limit_rejected_total
 rate_limit_redis_errors_total
-rate_limit_redis_latency_ms
+rate_limit_redis_latency_ms_seconds_count
+rate_limit_redis_latency_ms_seconds_sum
+rate_limit_redis_latency_ms_seconds_max
 ```
 
-Grafana provisioning is included under `docker/grafana`.
+Grafana provisioning is included under `docker/grafana`. The dashboard is loaded into the `Rate Limiter` folder as `Distributed Rate Limiter` and uses a stable Prometheus datasource UID, `prometheus-rate-limiter`.
+
+Open Grafana at `http://localhost:3000` with `admin` / `admin`, then open `Rate Limiter > Distributed Rate Limiter`.
+
+Dashboard panels:
+
+- Rate limit requests/sec by result.
+- Rejection ratio.
+- Redis errors/sec.
+- Redis Lua average and max latency in milliseconds. The Prometheus queries convert Micrometer timer seconds to milliseconds with `1000 * (...)`.
+- HTTP `/api/test` requests/sec by status.
+- HTTP `/api/test` average and max latency in milliseconds.
+- JVM heap used.
+- Prometheus scrape health.
+- Allowed and rejected totals/sec.
 
 ## Testing
 
@@ -219,26 +235,60 @@ DOCKER_HOST=unix://$HOME/.docker/run/docker.sock DOCKER_API_VERSION=1.54 mvn ver
 
 ## Benchmarks
 
-JMH scaffold:
+Measured locally on June 10, 2026. These are workstation numbers, not production guarantees.
+
+Environment:
+
+- macOS 26.5 on arm64, 8 logical CPUs, 8 GB memory.
+- Maven 3.9.10.
+- JMH run with Oracle JDK 23 while compiling the project with Java release 21.
+- Docker 29.5.3 and Docker Compose v5.1.4 for the end-to-end k6 run.
+- Dockerized k6 was used because the local `k6` binary was not installed.
+
+JMH measures in-process algorithm throughput against the deterministic in-memory test store. It does not include Redis, network, servlet, or JSON overhead.
 
 ```bash
-mvn -Pbenchmark -DskipTests test-compile exec:exec
+mvn -Pbenchmark -DskipTests test-compile exec:exec | tee target/benchmark-jmh.txt
 ```
 
-Recommended production benchmark path:
+JMH results:
+
+| Benchmark | Mode | Threads | Score | Error |
+|---|---|---:|---:|---:|
+| Fixed Window Counter | `thrpt` | 50 | 3,147,577.434 ops/sec | +/- 63,543.911 |
+| Sliding Window Log | `thrpt` | 50 | 126,631.897 ops/sec | +/- 93,418.982 |
+| Token Bucket | `thrpt` | 50 | 2,347,091.463 ops/sec | +/- 70,796.357 |
+
+k6 measures end-to-end HTTP behavior through Docker Compose: k6 container -> Spring Boot app -> Redis Lua scripts. The script intentionally accepts both `200` and `429` as expected because a working rate limiter should reject excess traffic.
 
 ```bash
-mvn -DskipTests package
-k6 run --vus 500 --duration 30s load-test/k6_load_test.js
+docker run --rm \
+  --network rate-limiter-service_internal \
+  -e BASE_URL=http://app:8080 \
+  -e CLIENT_PREFIX=bench-$(date +%s) \
+  -v "$PWD/load-test:/scripts:ro" \
+  grafana/k6:latest run /scripts/k6_load_test.js | tee target/benchmark-k6.txt
 ```
 
-Benchmark placeholders:
+Optional k6 controls:
 
-| Benchmark | Throughput | p99 latency |
-|---|---:|---:|
-| Token Bucket | TBD | TBD |
-| Sliding Window Log | TBD | TBD |
-| Fixed Window Counter | TBD | TBD |
+- `BASE_URL`: target URL, default `http://localhost:8080`.
+- `CLIENT_PREFIX`: client ID prefix, default `client`.
+- `CLIENT_POOL`: number of randomized clients, default `100`.
+
+k6 results:
+
+| VUs | Duration | Requests | Requests/sec | Avg latency | p95 latency | p99 latency | Max latency | Failed rate |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 500 | 30s | 837,048 | 27,844.075/sec | 16.81 ms | 39.98 ms | 63.2 ms | 484.41 ms | 0.00% |
+
+Status distribution:
+
+| Status | Count | Rate |
+|---:|---:|---:|
+| 200 | 10,000 | 332.646/sec |
+| 429 | 827,048 | 27,511.429/sec |
+| Other | 0 | 0/sec |
 
 ## CI
 
@@ -256,6 +306,6 @@ It runs Java 21 with Maven cache, executes `mvn verify`, and uploads the JaCoCo 
 ## Known Limitations
 
 - JWT subject extraction is best-effort and does not verify signatures. Production deployments should integrate issuer/JWK validation.
-- Grafana dashboard is a functional placeholder, not a polished production dashboard.
-- Benchmark numbers are intentionally left blank until measured on the target hardware.
+- Grafana is provisioned for local development. Production deployments should add alert rules, retention-aware panels, and environment-specific labels.
+- Benchmark results are local-machine measurements. Treat them as a baseline for this workstation, not capacity planning data.
 - Testcontainers integration tests require Docker; they skip on machines without a Docker daemon.

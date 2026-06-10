@@ -1,39 +1,331 @@
 {
+  "uid": "distributed-rate-limiter",
   "title": "Distributed Rate Limiter",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
+  "tags": [
+    "rate-limiter",
+    "spring-boot",
+    "redis"
+  ],
+  "timezone": "browser",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
   "panels": [
     {
+      "id": 1,
       "type": "timeseries",
-      "title": "Allowed vs Rejected",
-      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "title": "Rate Limit Requests/sec by Result",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-rate-limiter"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
       "targets": [
         {
+          "refId": "A",
           "expr": "sum by (result) (rate(rate_limit_requests_total[1m]))",
           "legendFormat": "{{result}}"
         }
       ]
     },
     {
+      "id": 2,
       "type": "timeseries",
-      "title": "Redis Errors",
-      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "title": "Rejection Ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-rate-limiter"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
       "targets": [
         {
+          "refId": "A",
+          "expr": "100 * sum(rate(rate_limit_requests_total{result=\"rejected\"}[1m])) / clamp_min(sum(rate(rate_limit_requests_total[1m])), 0.001)",
+          "legendFormat": "rejected"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Redis Errors/sec",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-rate-limiter"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
           "expr": "rate(rate_limit_redis_errors_total[1m])",
           "legendFormat": "redis_errors"
         }
       ]
     },
     {
+      "id": 4,
       "type": "timeseries",
       "title": "Redis Lua Latency",
-      "gridPos": {"x": 0, "y": 8, "w": 24, "h": 8},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-rate-limiter"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 8,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
       "targets": [
         {
-          "expr": "rate(rate_limit_redis_latency_ms_sum[1m]) / rate(rate_limit_redis_latency_ms_count[1m])",
-          "legendFormat": "avg_latency"
+          "refId": "A",
+          "expr": "1000 * rate(rate_limit_redis_latency_ms_seconds_sum[1m]) / clamp_min(rate(rate_limit_redis_latency_ms_seconds_count[1m]), 0.001)",
+          "legendFormat": "avg"
+        },
+        {
+          "refId": "B",
+          "expr": "1000 * rate_limit_redis_latency_ms_seconds_max",
+          "legendFormat": "max"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Prometheus Scrape Health",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-rate-limiter"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 8,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"rate-limiter-service\"}",
+          "legendFormat": "rate-limiter-service"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "HTTP /api/test Requests/sec by Status",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-rate-limiter"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (rate(http_server_requests_seconds_count{uri=\"/api/test\"}[1m]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "HTTP /api/test Latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-rate-limiter"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1000 * sum(rate(http_server_requests_seconds_sum{uri=\"/api/test\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{uri=\"/api/test\"}[1m])), 0.001)",
+          "legendFormat": "avg"
+        },
+        {
+          "refId": "B",
+          "expr": "1000 * max(http_server_requests_seconds_max{uri=\"/api/test\"})",
+          "legendFormat": "max"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "JVM Heap Used",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-rate-limiter"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})",
+          "legendFormat": "heap_used"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Allowed and Rejected Totals/sec",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-rate-limiter"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(rate_limit_allowed_total[1m])",
+          "legendFormat": "allowed"
+        },
+        {
+          "refId": "B",
+          "expr": "rate(rate_limit_rejected_total[1m])",
+          "legendFormat": "rejected"
         }
       ]
     }
