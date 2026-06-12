@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink-950: var(--ink-950);
+  --color-ink-900: var(--ink-900);
+  --color-ink-800: var(--ink-800);
+  --color-ink-700: var(--ink-700);
+  --color-ink-500: var(--ink-500);
+  --color-ink-300: var(--ink-300);
+  --color-ink-100: var(--ink-100);
+  --color-paper-0: var(--paper-0);
+  --color-accent-500: var(--accent-500);
+  --color-accent-300: var(--accent-300);
+}
+
+:root {
+  --ink-950: hsl(222 20% 6%);
+  --ink-900: hsl(222 18% 10%);
+  --ink-800: hsl(222 16% 16%);
+  --ink-700: hsl(222 14% 24%);
+  --ink-500: hsl(222 10% 45%);
+  --ink-300: hsl(222 8% 68%);
+  --ink-100: hsl(222 6% 88%);
+  --paper-0: hsl(222 20% 98%);
+  --accent-500: hsl(222 70% 58%);
+  --accent-300: hsl(222 70% 75%);
+  color: var(--ink-100);
+  background: var(--ink-950);
+  font-family: Inter, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 375px;
+  min-height: 100vh;
+  background: var(--ink-950);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent-500);
+  outline-offset: 2px;
+}
+
+.metric-font {
+  font-family: "JetBrains Mono", "IBM Plex Mono", SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

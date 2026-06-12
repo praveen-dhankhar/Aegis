@@ -15,6 +15,7 @@ public class RateLimiterProperties {
     private int configCacheTtlSeconds = 5;
     private int configTtlSeconds = 86_400;
     private String adminKey = "";
+    private String dashboardCorsAllowedOrigins = "http://localhost:5173";
 
     public int getDefaultLimit() {
         return defaultLimit;
@@ -78,6 +79,14 @@ public class RateLimiterProperties {
 
     public void setAdminKey(String adminKey) {
         this.adminKey = adminKey;
+    }
+
+    public String getDashboardCorsAllowedOrigins() {
+        return dashboardCorsAllowedOrigins;
+    }
+
+    public void setDashboardCorsAllowedOrigins(String dashboardCorsAllowedOrigins) {
+        this.dashboardCorsAllowedOrigins = dashboardCorsAllowedOrigins;
     }
 
     public RateLimitConfig defaultConfig(String clientId) {

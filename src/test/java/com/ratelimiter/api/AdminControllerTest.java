@@ -2,8 +2,10 @@ package com.ratelimiter.api;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -39,6 +41,34 @@ class AdminControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(validCreateJson("unauthorized-client", 10)))
             .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void validatesAdminKeyAgainstProtectedAuthEndpoint() throws Exception {
+        mockMvc.perform(get("/admin/auth/validate")
+                .header("X-Admin-Key", "test-admin-key"))
+            .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/admin/auth/validate")
+                .header("X-Admin-Key", "wrong-key"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.error").value("unauthorized"));
+    }
+
+    @Test
+    void dashboardCorsAllowsConfiguredOriginAndRateLimitHeaders() throws Exception {
+        mockMvc.perform(options("/admin/auth/validate")
+                .header("Origin", "http://localhost:5173")
+                .header("Access-Control-Request-Method", "GET")
+                .header("Access-Control-Request-Headers", "X-Admin-Key"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
+
+        mockMvc.perform(get("/admin/rate-limits")
+                .header("Origin", "http://localhost:5173"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+            .andExpect(header().string("Access-Control-Expose-Headers", "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After"));
     }
 
     @Test

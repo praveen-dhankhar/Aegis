@@ -40,8 +40,11 @@ public class AdminAuthInterceptor implements HandlerInterceptor {
     }
 
     private boolean requiresAdminKey(HttpServletRequest request) {
-        if (!request.getRequestURI().startsWith("/admin/rate-limits")) {
+        if (HttpMethod.OPTIONS.matches(request.getMethod())) {
             return false;
+        }
+        if (!request.getRequestURI().startsWith("/admin/rate-limits")) {
+            return request.getRequestURI().startsWith("/admin/auth/");
         }
         return HttpMethod.POST.matches(request.getMethod())
             || HttpMethod.PUT.matches(request.getMethod())

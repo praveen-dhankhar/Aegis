@@ -23,7 +23,7 @@ RedisAtomicStore
 Redis 7.x
 ```
 
-The service exposes a protected admin API for runtime config changes, Actuator/Prometheus metrics, and Docker Compose for app + Redis + Prometheus + Grafana.
+The service exposes a protected admin API for runtime config changes, Actuator/Prometheus metrics, Docker Compose for app + Redis + Prometheus + Grafana, and the React-based Aegis Control Plane in `frontend/`.
 
 ## Algorithms
 
@@ -60,6 +60,7 @@ docker compose up --build
 Endpoints:
 
 - App: `http://localhost:8080`
+- Aegis Control Plane: `http://localhost:8081`
 - Health: `http://localhost:8080/actuator/health`
 - Prometheus metrics: `http://localhost:8080/actuator/prometheus`
 - Prometheus UI: `http://localhost:9090`
@@ -67,6 +68,111 @@ Endpoints:
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 
 Redis is only attached to the internal Docker network and is not published to the host.
+
+## Aegis Control Plane
+
+The Control Plane is a monochromatic React 18 + TypeScript dashboard in `frontend/`. It uses Vite, React Router, TanStack Query, React Hook Form, Zod, Recharts, Vitest, React Testing Library, Playwright, Tailwind CSS, and an Nginx production container.
+
+Purpose:
+
+- Show live allowed/rejected traffic, rejection ratio, Redis latency, Redis errors, and health state from `/actuator/prometheus` and `/actuator/health`.
+- Manage explicit rate-limit rules through `/admin/rate-limits`.
+- Inspect per-client config and algorithm-specific Redis statistics.
+- Demonstrate real limiter behavior through the Sandbox, which sends `GET /api/test` requests with `X-API-Key`.
+- Explain Token Bucket, Sliding Window Log, Fixed Window Counter, Redis Lua atomicity, and fail-open/fail-closed trade-offs.
+
+Frontend structure:
+
+```text
+frontend/src/
+  api/          typed backend clients and API error normalization
+  app/          router, shell, refresh controls
+  components/   shared UI primitives, auth drawer, dialogs
+  features/     auth, overview, rules, sandbox, algorithms, styleguide
+  hooks/        document title and visibility-aware polling
+  lib/          Prometheus parser, header parsing, rates, formatting
+```
+
+Local frontend development:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+The Vite dev server runs on `http://localhost:5173` and calls the backend from `VITE_API_BASE_URL`, which defaults to `http://localhost:8080`. Start the backend separately through Maven or Docker Compose before using live metrics and rule mutations.
+
+Production Docker behavior:
+
+- `docker compose up --build` starts the Nginx-hosted dashboard at `http://localhost:8081`.
+- Nginx serves the SPA and reverse proxies `/api`, `/admin`, and `/actuator` to `app:8080` on the internal Compose network.
+- Development port `5173` and production port `8081` are intentionally different.
+
+Frontend environment variables:
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `VITE_API_BASE_URL` | `http://localhost:8080` | Backend origin used by Vite dev and preview builds |
+| `VITE_METRICS_REFRESH_MS` | `5000` | Overview metrics refresh interval |
+| `VITE_RULES_REFRESH_MS` | `10000` | Rules refresh interval |
+
+Dashboard routes:
+
+| Route | Purpose |
+|---|---|
+| `/login` | Memory-only `X-Admin-Key` sign-in |
+| `/` | Overview metrics, health, and Redis panels |
+| `/rules` | Rules table plus create/edit/delete actions |
+| `/rules/:clientId` | Client config and live stats |
+| `/sandbox` | Controlled real request bursts against `/api/test` |
+| `/algorithms` | Algorithm comparison and engineering trade-offs |
+| `/styleguide` | Design-token and component verification |
+
+### Authentication
+
+The dashboard stores the admin key in React memory only. It does not use `localStorage` or `sessionStorage`. Sign-in validates the key with:
+
+```text
+GET /admin/auth/validate
+X-Admin-Key: <key>
+```
+
+The validation endpoint returns `204 No Content` for a valid key and `401 {"error":"unauthorized"}` for an invalid key. Read-only rule and metrics screens remain usable without a key when the backend permits them. Write controls prompt for sign-in and send `X-Admin-Key` only on protected requests.
+
+### API Integration Map
+
+| Dashboard feature | Backend endpoint | Notes |
+|---|---|---|
+| Key validation | `GET /admin/auth/validate` | Requires `X-Admin-Key` |
+| Rules list | `GET /admin/rate-limits` | Public in the current backend |
+| Client detail | `GET /admin/rate-limits/{clientId}` | Returns `client_id`, `config`, and flexible `stats` |
+| Create rule | `POST /admin/rate-limits` | Requires `X-Admin-Key` |
+| Edit rule | `PUT /admin/rate-limits/{clientId}` | Requires `X-Admin-Key` |
+| Delete rule | `DELETE /admin/rate-limits/{clientId}` | Requires `X-Admin-Key` |
+| Overview metrics | `GET /actuator/prometheus` | Parsed client-side; no PromQL engine |
+| Health panels | `GET /actuator/health` | Redis details depend on Actuator exposure |
+| Sandbox | `GET /api/test` | Sends `X-API-Key: <clientId>` |
+
+Rate-limit response headers:
+
+- `X-RateLimit-Limit`: configured limit.
+- `X-RateLimit-Remaining`: remaining requests in the active limiter state.
+- `X-RateLimit-Reset`: epoch milliseconds.
+- `Retry-After`: seconds, emitted on rejected responses.
+
+### Sandbox Demo
+
+1. Start the stack with `ADMIN_API_KEY` set.
+2. Open `http://localhost:8081`.
+3. Sign in if you want to create a low-limit demo rule.
+4. Create a rule such as `demo-client`, `SLIDING_WINDOW`, limit `2`, window `60000`.
+5. Open `/sandbox`, select `demo-client`, and fire a burst of `5` or `20`.
+6. The log should show early `200` responses followed by `429` responses with `Retry-After`.
+
+### Screenshots
+
+Screenshots are not committed because they depend on the live backend state. Run `npm run e2e` or open `http://localhost:8081` after `docker compose up --build` to capture current UI screenshots.
 
 ## Admin API
 
@@ -168,6 +274,7 @@ Environment variables:
 | `RATE_LIMIT_DEFAULT_BURST_CAPACITY` | `100` | Default token bucket burst |
 | `RATE_LIMIT_DEFAULT_ALGORITHM` | `SLIDING_WINDOW` | Default algorithm |
 | `RATE_LIMIT_DEFAULT_FAIL_MODE` | `OPEN` | Default Redis failure behavior |
+| `DASHBOARD_CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated origins allowed to call backend dashboard routes during browser development |
 
 ## Redis Key Schema
 
@@ -224,6 +331,8 @@ Included tests:
 - `RateLimitFilterIntegrationTest`: response headers and HTTP 429 body.
 - `DistributedConsistencyIT`: shared Redis state with Testcontainers.
 - `RedisAlgorithmIT`: Redis Lua algorithm and config persistence checks.
+- Frontend Vitest/RTL tests: Prometheus parsing, counter rates, header parsing, Zod rule schemas, auth memory behavior, and rule form behavior.
+- Playwright smoke: verifies the dashboard shell renders in Chromium.
 
 `mvn verify` runs unit tests, packages the application, runs `*IT` integration tests, and generates a JaCoCo report. Testcontainers tests skip automatically when Docker is unavailable.
 
@@ -232,6 +341,20 @@ On Docker Desktop installations where Testcontainers cannot discover the daemon 
 ```bash
 DOCKER_HOST=unix://$HOME/.docker/run/docker.sock DOCKER_API_VERSION=1.54 mvn verify
 ```
+
+Frontend validation:
+
+```bash
+cd frontend
+npm ci
+npm run lint
+npm run typecheck
+npm run test -- --run
+npm run build
+npm run e2e
+```
+
+`npm run e2e` starts the Vite server automatically. Install Playwright browser binaries once with `npx playwright install chromium` if the local cache is empty.
 
 ### JaCoCo coverage
 
