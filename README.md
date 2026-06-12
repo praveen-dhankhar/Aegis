@@ -1,4 +1,4 @@
-# Distributed Rate Limiter Service
+# Aegis : Distributed Rate Limiting Platform
 
 Java 21 + Spring Boot 3.x distributed rate limiter backed by Redis 7.x. It implements Token Bucket, Sliding Window Log, and Fixed Window Counter with atomic Lua scripts so concurrent requests across multiple service instances share the same limiter state.
 
@@ -232,6 +232,37 @@ On Docker Desktop installations where Testcontainers cannot discover the daemon 
 ```bash
 DOCKER_HOST=unix://$HOME/.docker/run/docker.sock DOCKER_API_VERSION=1.54 mvn verify
 ```
+
+### JaCoCo coverage
+
+Latest local JaCoCo report analyzed on June 12, 2026.
+
+Overall coverage:
+
+| Counter | Covered | Missed | Coverage |
+|---|---:|---:|---:|
+| Instructions | 1,873 | 375 | 83.32% |
+| Branches | 100 | 56 | 64.10% |
+| Lines | 404 | 84 | 82.79% |
+| Complexity | 136 | 64 | 68.00% |
+| Methods | 105 | 17 | 86.07% |
+| Classes | 29 | 0 | 100.00% |
+
+Package coverage:
+
+| Package | Line coverage | Branch coverage |
+|---|---:|---:|
+| `com.ratelimiter.algorithm` | 98.59% | 83.33% |
+| `com.ratelimiter.api` | 86.67% | 85.71% |
+| `com.ratelimiter.api.dto` | 100.00% | 50.00% |
+| `com.ratelimiter.config` | 84.03% | 53.57% |
+| `com.ratelimiter.core` | 91.75% | 83.33% |
+| `com.ratelimiter.filter` | 100.00% | 66.67% |
+| `com.ratelimiter.metrics` | 100.00% | 100.00% |
+| `com.ratelimiter.redis` | 54.72% | 35.00% |
+| `com.ratelimiter` | 33.33% | n/a |
+
+The core algorithms, request filter, and metrics wiring are well covered. The main coverage gap is the Redis integration layer, especially `RedisAtomicStore` at 47.67% line coverage and 30.56% branch coverage. The low bootstrap and exception-handler percentages are small line-count classes, but Redis error paths and Lua result handling are the highest-value areas for more tests.
 
 ## Benchmarks
 
