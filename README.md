@@ -417,7 +417,7 @@ k6 measures end-to-end HTTP behavior through Docker Compose: k6 container -> Spr
 
 ```bash
 docker run --rm \
-  --network rate-limiter-service_internal \
+  --network p1_internal \
   -e BASE_URL=http://app:8080 \
   -e CLIENT_PREFIX=bench-$(date +%s) \
   -v "$PWD/load-test:/scripts:ro" \

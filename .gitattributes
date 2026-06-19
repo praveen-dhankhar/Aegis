@@ -1,0 +1,13 @@
+# GitHub Linguist overrides — ensure Java is the dominant language
+
+# Frontend is vendored (React dashboard); real logic lives in the Java backend
+frontend/**         linguist-vendored
+
+# Load testing scripts are not application source code
+load-test/**        linguist-vendored
+
+# Docker/infra configuration is not application source code
+docker/**           linguist-vendored
+
+# JaCoCo reports are generated artifacts (in case they ever get committed again)
+jacoco-report/**    linguist-generated
